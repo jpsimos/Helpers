@@ -452,7 +452,7 @@ namespace Helpers
 
 		double MicrosToSeconds(long long micros)
 		{
-			double seconds = static_cast<double>(micros) / 1000.0;
+			double seconds = static_cast<double>(micros) / 1000000.0;
 			return seconds;
 		}
 
