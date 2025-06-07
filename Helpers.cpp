@@ -21,25 +21,42 @@ namespace Helpers
 {
 	namespace Text
 	{
+		bool CStrEq(const char* __restrict__ a, const char* __restrict__ b)
+		{
+			bool equal = static_cast<bool>(a != b && a != NULL && b != NULL);
+
+			while(equal && a != b)
+			{
+				if(*a != *b)
+				{
+					equal = false;
+				}
+				else if(*a++ == '\0' || *b++ == '\0')
+				{
+					break;
+				}
+			}
+
+			return equal;
+		}
+
 		std::string Stringf(const char* __restrict__ const fmt, ...)
 		{
-			int requiredBufLen = 0;
-			char* resultCstr;
+			int requiredBufLenInclTerm;
 			std::string result;
 			std::va_list args;
 			std::va_list argsCopy;
 			va_start(args, fmt);
 			va_copy(argsCopy, args);
-			requiredBufLen = 1 + std::vsnprintf(NULL, 0, fmt, args);
+			requiredBufLenInclTerm = 1 + std::vsnprintf((char*)NULL, 0, fmt, args);
 			va_end(args);
-			if (requiredBufLen > 1)
+			if (requiredBufLenInclTerm > 1)
 			{
-				resultCstr = new char[requiredBufLen];
-				std::vsnprintf(resultCstr, requiredBufLen, fmt, argsCopy);
+				result.reserve(requiredBufLenInclTerm);
+				result.resize(requiredBufLenInclTerm);
+				std::vsnprintf(&result[0], requiredBufLenInclTerm, fmt, argsCopy);
 				va_end(argsCopy);
-				resultCstr[requiredBufLen - 1] = '\0';
-				result = resultCstr;
-				delete [] resultCstr;
+				result.resize(requiredBufLenInclTerm - 1);
 			}
 			return result;
 		}
@@ -197,18 +214,12 @@ namespace Helpers
 
 	namespace Random
 	{
-		static std::random_device randomDevice;
-		static std::default_random_engine randomEngine(randomDevice());
+		std::random_device randomDevice;
+		std::default_random_engine randomEngine(randomDevice());
 
 		void SeedRandom(unsigned long s)
 		{
 			randomEngine.seed(s);
-		}
-
-		int Random(const int min, const int max)
-		{
-			std::uniform_int_distribution<int> uniformDist(min, max);
-			return uniformDist(randomEngine);
 		}
 	} // namespace Random
 
@@ -431,18 +442,18 @@ namespace Helpers
 
 	namespace Time
 	{
-		static const std::chrono::high_resolution_clock::time_point monotonicBegan = std::chrono::high_resolution_clock::now();
+		static const std::chrono::high_resolution_clock::time_point monotonicBegan
+			= std::chrono::high_resolution_clock::now();
 
 		long long Micros()
 		{
-			long long micros = std::chrono::duration_cast<std::chrono::microseconds>(
+			return std::chrono::duration_cast<std::chrono::microseconds>(
 				std::chrono::high_resolution_clock::now() - monotonicBegan).count();
-			return micros;
 		}
 
 		long long Millis()
 		{
-			return  Micros() / 1000L;
+			return  Micros() / 1000LL;
 		}
 
 		double Seconds()
@@ -452,23 +463,20 @@ namespace Helpers
 
 		double MicrosToSeconds(long long micros)
 		{
-			double seconds = static_cast<double>(micros) / 1000000.0;
-			return seconds;
+			return static_cast<double>(micros) / 1000000.0;
 		}
 
 		double MillisToSeconds(long long millis)
 		{
-			double seconds = static_cast<double>(millis) / 1000.0;
-			return seconds;
+			return static_cast<double>(millis) / 1000.0;
 		}
 
 		long long SecondsToMicros(double seconds)
 		{
-			const long long wholeSeconds = static_cast<long long>(seconds);
-			const double partSeconds = seconds - static_cast<double>(wholeSeconds);
-			long long micros = wholeSeconds * 1000000LL;
-			micros += static_cast<long long>(partSeconds * 1000000.0);
-			return micros;
+			double partSeconds;
+			partSeconds = std::modf(seconds, &seconds);
+			return (static_cast<long long>(seconds) * 1000000LL)
+					+ static_cast<long long>(partSeconds * 1000000.0);
 		}
 
 		long long SecondsToMillis(double seconds)
@@ -476,64 +484,57 @@ namespace Helpers
 			return SecondsToMicros(seconds) / 1000LL;
 		}
 
-		Stopwatch::Stopwatch()
-			: m_beganAt(Micros())
+		void WaitSeconds(double seconds)
 		{
+			seconds += Seconds();
+			do {} while(Seconds() < seconds);
+		}
+
+		void WaitMillis(long long millis)
+		{
+			millis += Millis();
+			do {} while(Millis() < millis);
+		}
+
+		void WaitMicros(long long micros)
+		{
+			micros += Micros();
+			do {} while(Micros() < micros);
+		}
+
+		Stopwatch::Stopwatch()
+		{
+			Set(Micros());
 		}
 
 		Stopwatch::Stopwatch(const int micros)
-			: m_beganAt(Micros() + static_cast<long long>(micros))
 		{
+			Set(micros);
 		}
 
 		Stopwatch::Stopwatch(const unsigned int micros)
-			: m_beganAt(Micros() + static_cast<long long>(micros))
 		{
+			Set(micros);
 		}
 
 		Stopwatch::Stopwatch(const long long micros)
-			: m_beganAt(Micros() + micros)
 		{
+			Set(micros);
 		}
 
 		Stopwatch::Stopwatch(const unsigned long long micros)
-			: m_beganAt(Micros() + static_cast<long long>(micros))
 		{
+			Set(micros);
 		}
 
 		Stopwatch::Stopwatch(const double seconds)
-			: m_beganAt(Micros() + SecondsToMicros(seconds))
 		{
+			Set(seconds);
 		}
 
 		void Stopwatch::Reset()
 		{
-			m_beganAt = Micros();
-		}
-
-		void Stopwatch::WaitUntil(const int micros)
-		{
-			do {} while(Get() < static_cast<long long>(micros));
-		}
-
-		void Stopwatch::WaitUntil(const unsigned int micros)
-		{
-			do {} while(Get() < static_cast<long long>(micros));
-		}
-
-		void Stopwatch::WaitUntil(const long long micros)
-		{
-			do {} while(Get() < micros);
-		}
-
-		void Stopwatch::WaitUntil(const unsigned long long micros)
-		{
-			do {} while(Get() < static_cast<long long>(micros));
-		}
-
-		void Stopwatch::WaitUntil(const double seconds)
-		{
-			do {} while(GetSeconds() < seconds);
+			Set(0LL);
 		}
 
 		void Stopwatch::Set(const long long micros)
@@ -543,22 +544,22 @@ namespace Helpers
 
 		void Stopwatch::Set(const unsigned long long micros)
 		{
-			m_beganAt = Micros() + static_cast<long long>(micros);
+			Set(static_cast<long long>(micros));
 		}
 
 		void Stopwatch::Set(const int micros)
 		{
-			m_beganAt = Micros() + static_cast<long long>(micros);
+			Set(static_cast<long long>(micros));
 		}
 
 		void Stopwatch::Set(const unsigned int micros)
 		{
-			m_beganAt = Micros() + static_cast<long long>(micros);
+			Set(static_cast<long long>(micros));
 		}
 
 		void Stopwatch::Set(const double seconds)
 		{
-			m_beganAt = Micros() + Time::SecondsToMicros(seconds);
+			Set(SecondsToMicros(seconds));
 		}
 
 		long long Stopwatch::Get() const
@@ -573,7 +574,32 @@ namespace Helpers
 
 		double Stopwatch::GetSeconds() const
 		{
-			return MicrosToSeconds(Micros() - m_beganAt);
+			return MicrosToSeconds(Get());
+		}
+
+		bool Stopwatch::HasExceded(const long long micros) const
+		{
+			return static_cast<bool>(Get() >= micros);
+		}
+
+		bool Stopwatch::HasExceded(const unsigned long long micros) const
+		{
+			return static_cast<bool>(Get() >= static_cast<long long>(micros));
+		}
+
+		bool Stopwatch::HasExceded(const int micros) const
+		{
+			return static_cast<bool>(Get() >= static_cast<long long>(micros));
+		}
+
+		bool Stopwatch::HasExceded(const unsigned int micros) const
+		{
+			return static_cast<bool>(Get() >= static_cast<long long>(micros));
+		}
+
+		bool Stopwatch::HasExceded(const double seconds) const
+		{
+			return static_cast<bool>(GetSeconds() > seconds || Numeric::IsDoubleEqual(GetSeconds(), seconds));
 		}
 
 		void Stopwatch::operator=(const long long& value)
