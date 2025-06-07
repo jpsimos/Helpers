@@ -38,6 +38,7 @@ namespace Helpers
 {
 	namespace Text
 	{
+		bool CStrEq(const char* __restrict__ a, const char* __restrict__ b);
 		std::string Stringf(const char* __restrict__ const fmt, ...);
 		std::string StringReplace(std::string str, const std::string& what, const std::string& with);
 		std::vector<std::string> StringSplit(const std::string& str, const std::string& delim);
@@ -53,9 +54,18 @@ namespace Helpers
 
 	namespace Random
 	{
+		extern std::random_device randomDevice;
+		extern std::default_random_engine randomEngine;
+
 		void SeedRandom(unsigned long s);
-		int Random(const int min = std::numeric_limits<int>::min(), const int max = std::numeric_limits<int>::max());
-	}
+
+		template<typename IntType>
+		IntType Random(const IntType inclMin, const IntType inclMax)
+		{
+			std::uniform_int_distribution<IntType> uniformDist(inclMin, inclMax);
+			return uniformDist(randomEngine);
+		}
+	} // namespace Random
 
 	namespace Numeric
 	{
@@ -64,7 +74,7 @@ namespace Helpers
 		int BCDToDec(const int bcd);
 		int DecToBCD(const int dec);
 		bool IsDoubleEqual(const double a, const double b, const double epsilon = 0.000001);
-	}
+	} // namespace Numeric
 
 	namespace Checksum
 	{
@@ -78,7 +88,7 @@ namespace Helpers
 			uint16_t Calculate(const void* data, const size_t dataSizeBytes, const uint16_t polynomial = CRC16_DEFAULT_BIT_REFLECTED_POLYNOMIAL);
 			uint16_t Recalculate(uint16_t crc, const void* data, const size_t dataSizeBytes, const uint16_t polynomial = CRC16_DEFAULT_BIT_REFLECTED_POLYNOMIAL);
 		}
-	}
+	} // namespace Checksum
 
 	namespace Time
 	{
@@ -89,6 +99,9 @@ namespace Helpers
 		double MillisToSeconds(long long millis);
 		long long SecondsToMicros(double seconds);
 		long long SecondsToMillis(double seconds);
+		void WaitSeconds(double seconds);
+		void WaitMillis(long long millis);
+		void WaitMicros(long long micros);
 
 		class Stopwatch
 		{
@@ -101,11 +114,6 @@ namespace Helpers
 			Stopwatch(const double seconds);
 			~Stopwatch() {}
 			void Reset();
-			void WaitUntil(const int micros);
-			void WaitUntil(const unsigned int micros);
-			void WaitUntil(const long long micros);
-			void WaitUntil(const unsigned long long micros);
-			void WaitUntil(const double seconds);
 			void Set(const long long micros);
 			void Set(const unsigned long long micros);
 			void Set(const int micros);
@@ -114,6 +122,11 @@ namespace Helpers
 			long long Get() const;
 			long long GetMillis() const;
 			double GetSeconds() const;
+			bool HasExceded(const long long micros) const;
+			bool HasExceded(const unsigned long long micros) const;
+			bool HasExceded(const int micros) const;
+			bool HasExceded(const unsigned int micros) const;
+			bool HasExceded(const double seconds) const;
 			void operator=(const long long& value);
 			void operator=(const unsigned long long& value);
 			void operator=(const int& value);
@@ -147,6 +160,18 @@ namespace Helpers
 
 			operator long long() const {
 				return Get();
+			}
+
+			operator unsigned long long() const {
+				return static_cast<unsigned long long>(Get());
+			}
+
+			operator int() const {
+				return static_cast<int>(Get());
+			}
+
+			operator unsigned int() const {
+				return static_cast<unsigned int>(Get());
 			}
 
 			operator double() const {
