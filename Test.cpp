@@ -22,13 +22,26 @@ bool Test_Threading();
 
 int main(int argc, char* argv[])
 {
-	std::cout << "Test_(Macros) " << (Test_Macros() ? "Passed" : "Failed") << "\n";
-	std::cout << "Test_Text " << (Test_Text() ? "Passed" : "Failed") << "\n";
-	std::cout << "Test_Random " << (Test_Random() ? "Passed" : "Failed") << "\n";
-	std::cout << "Test_Numeric " << (Test_Numeric() ? "Passed" : "Failed") << "\n";
-	std::cout << "Test_Checksum " << (Test_Checksum() ? "Passed" : "Failed") << "\n";
-	std::cout << "Test_Time " << (Test_Time() ? "Passed" : "Failed") << "\n";
-	std::cout << "Test_Threading " << (Test_Threading() ? "Passed" : "Failed") << "\n";
+	bool macrosPass = Test_Macros();
+	std::cout << "Test_Macros " << (macrosPass ? "Passed" : "Failed") << "\n";
+
+	bool textPass = Test_Text();
+	std::cout << "Test_Text " << (textPass ? "Passed" : "Failed") << "\n";
+
+	bool randomPass = Test_Random();
+	std::cout << "Test_Random " << (randomPass ? "Passed" : "Failed") << "\n";
+
+	bool numericPass = Test_Numeric();
+	std::cout << "Test_Numeric " << (numericPass ? "Passed" : "Failed") << "\n";
+
+	bool checksumPass = Test_Checksum();
+	std::cout << "Test_Checksum " << (checksumPass ? "Passed" : "Failed") << "\n";
+
+	bool timePass = Test_Time();
+	std::cout << "Test_Time " << (timePass ? "Passed" : "Failed") << "\n";
+
+	bool threadingPass = Test_Threading();
+	std::cout << "Test_Threading " << (threadingPass ? "Passed" : "Failed") << "\n";
 	
 	return 0;
 }
@@ -119,6 +132,13 @@ bool Test_Text()
 	}
 
 	if(!Text::StringEndsWith(testString, "Three") || Text::StringEndsWith(testString, "three"))
+	{
+		return false;
+	}
+
+	testString = "one two three\n";
+
+	if(!Text::StringEndsWith(testString, "\n"))
 	{
 		return false;
 	}
@@ -214,6 +234,19 @@ bool Test_Time()
 {
 	Time::Stopwatch stopwatchTest;
 
+	long long timeToWraparound = std::numeric_limits<long long>::max() - Time::Micros();
+	timeToWraparound /= 1000LL;
+	timeToWraparound += 100LL;
+
+	std::cout << "timeToWraparound = " << timeToWraparound << "\n";
+
+	for(unsigned int count = 0; count <= static_cast<unsigned int>(timeToWraparound) / 10; count++)
+	{
+		Time::WaitMillis(10);
+	}
+
+	std::cout << "timeWaited = " << stopwatchTest.GetMillis() << "\n";
+
 	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 	long long micros = stopwatchTest;
@@ -228,6 +261,20 @@ bool Test_Time()
 	double seconds = stopwatchTest.GetSeconds();
 
 	if(!(micros < Time::SecondsToMicros(seconds)))
+	{
+		return false;
+	}
+
+	stopwatchTest = 0;
+
+	if(stopwatchTest.HasExceded(1000 * 250) || stopwatchTest >= 0.250)
+	{
+		return false;
+	}
+
+	std::this_thread::sleep_for(std::chrono::milliseconds(251));
+
+	if(!stopwatchTest.HasExceded(1000 * 250) || stopwatchTest <= 0.250)
 	{
 		return false;
 	}
